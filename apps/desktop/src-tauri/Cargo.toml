@@ -1,0 +1,35 @@
+# Tauri v2 Rust shell for DOLLY (BUILD_PLAN §2.1).
+# This is a standalone crate — there is no workspace Cargo.toml at the repo root;
+# the JS side of apps/desktop is owned by the frontend agent and does not touch this file.
+[package]
+name = "dolly"
+version = "0.1.0"
+description = "DOLLY — local-first macOS screen recorder with cursor-driven auto-zoom"
+authors = ["DOLLY"]
+license = "UNLICENSED"
+edition = "2021"
+rust-version = "1.77"
+default-run = "dolly"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# "time" is required for tokio::time::{timeout, sleep} used by the sidecar supervisor.
+tokio = { version = "1", features = ["rt-multi-thread", "process", "io-util", "sync", "macros", "time"] }
+thiserror = "1"
+anyhow = "1"
+
+[[bin]]
+name = "dolly"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

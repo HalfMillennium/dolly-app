@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Core window/event/app permissions plus the updater for the main DOLLY window. All recording and project I/O flows through #[tauri::command] handlers in the Rust core, so the frontend needs no broad filesystem or shell capabilities.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:app:default",
+    "core:window:default",
+    "core:webview:default",
+    "core:event:default",
+    "core:path:default",
+    "updater:default"
+  ]
+}
