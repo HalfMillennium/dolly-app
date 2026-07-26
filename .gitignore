@@ -1,0 +1,32 @@
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Rust / Tauri
+target/
+apps/desktop/src-tauri/binaries/
+
+# Swift
+.build/
+.swiftpm/
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Build / signing secrets — never commit
+*.p12
+*.provisionprofile
+*.cer
+AuthKey_*.p8
+.env
+.env.*
+
+# Project bundles produced by the app during dev
+*.dolly/
+
+# Logs
+*.log

@@ -1,0 +1,7 @@
+{
+  "scenario": "Chaotic mouse-waving — continuous large motion, no clicks. High spread and no click anchors, so nothing survives filtering. No zooms.",
+  "expectedCount": 0,
+  "countTolerance": 1,
+  "checkFocals": false,
+  "focals": []
+}

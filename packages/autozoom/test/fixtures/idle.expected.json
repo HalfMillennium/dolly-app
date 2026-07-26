@@ -1,0 +1,7 @@
+{
+  "scenario": "Idle recording — almost no activity. No zooms.",
+  "expectedCount": 0,
+  "countTolerance": 1,
+  "checkFocals": false,
+  "focals": []
+}

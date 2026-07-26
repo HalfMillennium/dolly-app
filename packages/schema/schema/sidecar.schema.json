@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dolly.local/schema/sidecar.schema.json",
+  "title": "DollySidecarProtocol",
+  "description": "NDJSON line protocol between the Tauri shell and dollyd (BUILD_PLAN §3.4).",
+  "$defs": {
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "id"],
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "display" }, "id": { "type": "integer" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "id"],
+          "additionalProperties": false,
+          "properties": { "kind": { "const": "window" }, "id": { "type": "integer" } }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "display", "rect"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "region" },
+            "display": { "type": "integer" },
+            "rect": {
+              "type": "object",
+              "required": ["x", "y", "w", "h"],
+              "additionalProperties": false,
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "w": { "type": "number" },
+                "h": { "type": "number" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "cmd"],
+          "additionalProperties": false,
+          "properties": { "id": { "type": "integer" }, "cmd": { "const": "listSources" } }
+        },
+        {
+          "type": "object",
+          "required": ["id", "cmd"],
+          "additionalProperties": false,
+          "properties": { "id": { "type": "integer" }, "cmd": { "const": "ping" } }
+        },
+        {
+          "type": "object",
+          "required": ["id", "cmd", "target", "quality", "systemAudio", "out"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "integer" },
+            "cmd": { "const": "start" },
+            "target": { "$ref": "#/$defs/target" },
+            "quality": { "type": "string", "enum": ["studio", "quick"] },
+            "mic": { "type": ["string", "null"] },
+            "systemAudio": { "type": "boolean" },
+            "detectTyping": { "type": "boolean" },
+            "out": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["id", "cmd"],
+          "additionalProperties": false,
+          "properties": { "id": { "type": "integer" }, "cmd": { "const": "stop" } }
+        },
+        {
+          "type": "object",
+          "required": ["id", "cmd", "project", "out", "preset"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "integer" },
+            "cmd": { "const": "export" },
+            "project": { "type": "string" },
+            "out": { "type": "string" },
+            "preset": { "type": "string", "enum": ["h264-1080p", "h264-4k", "hevc-4k", "gif-720p"] }
+          }
+        }
+      ]
+    },
+    "event": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["ev", "t", "dropped"],
+          "additionalProperties": false,
+          "properties": {
+            "ev": { "const": "recording" },
+            "t": { "type": "number" },
+            "dropped": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["ev", "p", "fps"],
+          "additionalProperties": false,
+          "properties": {
+            "ev": { "const": "exportProgress" },
+            "p": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fps": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["ev", "code", "msg"],
+          "additionalProperties": false,
+          "properties": {
+            "ev": { "const": "error" },
+            "code": { "type": "string" },
+            "msg": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

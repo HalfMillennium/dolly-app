@@ -1,0 +1,7 @@
+{
+  "scenario": "Fast tab-switching — rapid far-apart clicks in a short window. The density budget (§6.4 step 7) collapses these to at most a single broad zoom so the result is not nauseating.",
+  "expectedCount": 1,
+  "countTolerance": 1,
+  "checkFocals": false,
+  "focals": []
+}

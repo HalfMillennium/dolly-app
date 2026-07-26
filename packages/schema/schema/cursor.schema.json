@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dolly.local/schema/cursor.schema.json",
+  "title": "DollyCursorEvent",
+  "description": "One line of cursor.jsonl (BUILD_PLAN §3.2). Timestamps are seconds relative to the first written video frame's PTS.",
+  "type": "object",
+  "required": ["t", "e"],
+  "additionalProperties": false,
+  "properties": {
+    "t": {
+      "type": "number",
+      "minimum": 0,
+      "description": "seconds, float, relative to the PTS of the first written video frame"
+    },
+    "x": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "normalized against the captured surface, origin top-left"
+    },
+    "y": { "type": "number", "minimum": 0, "maximum": 1 },
+    "e": {
+      "type": "string",
+      "enum": ["move", "down", "up", "drag", "scroll", "key"]
+    },
+    "b": { "type": "string", "enum": ["left", "right", "other"] },
+    "dy": { "type": "number" }
+  }
+}

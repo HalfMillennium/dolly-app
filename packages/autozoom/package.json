@@ -1,0 +1,29 @@
+{
+  "name": "@dolly/autozoom",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pure, deterministic auto-zoom: derive editable zoom segments from a cursor telemetry track (BUILD_PLAN §6.4). No filesystem or DOM access.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "make-fixtures": "tsx test/make-fixtures.ts"
+  },
+  "dependencies": {
+    "@dolly/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

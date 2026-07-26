@@ -1,0 +1,12 @@
+{
+  "scenario": "Dashboard walkthrough — deliberate clicks and dwells at four distinct widgets. One zoom per widget.",
+  "expectedCount": 4,
+  "countTolerance": 1,
+  "checkFocals": true,
+  "focals": [
+    { "x": 0.20, "y": 0.25 },
+    { "x": 0.75, "y": 0.28 },
+    { "x": 0.72, "y": 0.70 },
+    { "x": 0.25, "y": 0.72 }
+  ]
+}

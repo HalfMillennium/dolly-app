@@ -1,0 +1,33 @@
+{
+  "name": "@dolly/schema",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Source of truth for project.json and cursor.jsonl: JSON Schema + generated types + shared render math.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./math": {
+      "types": "./dist/math.d.ts",
+      "import": "./dist/math.js"
+    }
+  },
+  "files": ["dist", "schema"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "gen": "tsx scripts/gen-ts.ts && ./scripts/gen-swift.sh"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "json-schema-to-typescript": "^15.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

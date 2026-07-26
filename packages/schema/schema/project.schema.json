@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dolly.local/schema/project.schema.json",
+  "title": "DollyProject",
+  "description": "project.json — the non-destructive edit document (BUILD_PLAN §3.3).",
+  "type": "object",
+  "required": ["version", "source", "audio", "trim", "composition", "cursor", "zooms", "speed"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "source": {
+      "type": "object",
+      "required": ["master", "proxy", "width", "height", "fps", "duration", "scale"],
+      "additionalProperties": false,
+      "properties": {
+        "master": { "type": "string" },
+        "proxy": { "type": "string" },
+        "width": { "type": "integer", "exclusiveMinimum": 0 },
+        "height": { "type": "integer", "exclusiveMinimum": 0 },
+        "fps": { "type": "number", "exclusiveMinimum": 0 },
+        "duration": { "type": "number", "minimum": 0 },
+        "scale": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "audio": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "role", "gain", "muted"],
+        "additionalProperties": false,
+        "properties": {
+          "file": { "type": "string" },
+          "role": { "type": "string", "enum": ["system", "mic"] },
+          "gain": { "type": "number", "minimum": 0 },
+          "muted": { "type": "boolean" }
+        }
+      }
+    },
+    "trim": {
+      "type": "object",
+      "required": ["in", "out"],
+      "additionalProperties": false,
+      "properties": {
+        "in": { "type": "number", "minimum": 0 },
+        "out": { "type": "number", "minimum": 0 }
+      }
+    },
+    "composition": {
+      "type": "object",
+      "required": ["backdrop", "padding", "radius", "shadow"],
+      "additionalProperties": false,
+      "properties": {
+        "backdrop": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["type", "from", "to", "angle"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "const": "gradient" },
+                "from": { "type": "string" },
+                "to": { "type": "string" },
+                "angle": { "type": "number" }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["type", "color"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "const": "solid" },
+                "color": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "padding": { "type": "number", "minimum": 0, "maximum": 0.5 },
+        "radius": { "type": "number", "minimum": 0 },
+        "shadow": {
+          "type": "object",
+          "required": ["enabled", "opacity", "blur", "y"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "blur": { "type": "number", "minimum": 0 },
+            "y": { "type": "number" }
+          }
+        }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "required": ["visible", "size", "smoothing", "clickRipple", "hideWhenIdle"],
+      "additionalProperties": false,
+      "properties": {
+        "visible": { "type": "boolean" },
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "smoothing": { "type": "number", "minimum": 0, "maximum": 1 },
+        "clickRipple": { "type": "boolean" },
+        "hideWhenIdle": { "type": "number", "minimum": 0 }
+      }
+    },
+    "zooms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/zoom" }
+    },
+    "speed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "end", "rate"],
+        "additionalProperties": false,
+        "properties": {
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "rate": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "autoZoom": {
+      "type": "object",
+      "required": ["lastRunParams", "generatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "lastRunParams": { "type": "object" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "$defs": {
+    "zoom": {
+      "type": "object",
+      "required": ["id", "start", "end", "scale", "focal", "rampIn", "rampOut", "easing", "origin"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "scale": { "type": "number", "minimum": 1 },
+        "focal": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["mode", "x", "y"],
+              "additionalProperties": false,
+              "properties": {
+                "mode": { "const": "fixed" },
+                "x": { "type": "number", "minimum": 0, "maximum": 1 },
+                "y": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["mode", "damping", "track"],
+              "additionalProperties": false,
+              "properties": {
+                "mode": { "const": "follow" },
+                "damping": { "type": "number", "exclusiveMinimum": 0 },
+                "track": { "const": "cursor" }
+              }
+            }
+          ]
+        },
+        "rampIn": { "type": "number", "minimum": 0 },
+        "rampOut": { "type": "number", "minimum": 0 },
+        "easing": { "type": "string", "enum": ["cubicInOut", "cubicOut", "linear"] },
+        "origin": { "type": "string", "enum": ["auto", "manual"] }
+      }
+    }
+  }
+}
