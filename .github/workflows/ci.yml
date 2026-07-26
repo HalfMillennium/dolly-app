@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  # The platform-independent core: this is the gate that actually runs green everywhere.
+  # It covers the shared render math (§6.3) and the auto-zoom fixture regression suite (§6.4).
+  ts-core:
+    name: TS core (schema + auto-zoom)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm -r build
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Test (math + auto-zoom fixtures)
+        run: pnpm -r test
+      - name: Smoke-test schema -> TypeScript codegen
+        run: pnpm --filter @dolly/schema exec tsx scripts/gen-ts.ts
+
+  frontend:
+    name: Frontend typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @dolly/schema build && pnpm --filter @dolly/autozoom build
+      - run: pnpm --filter desktop typecheck
+      - run: pnpm --filter desktop build
+
+  # macOS build: sidecar + Tauri app + the two native tests (§5.3 clock sync, §6.6 parity).
+  # This job compiles the Swift/Rust that cannot be built on Linux. It is allowed to be the
+  # slower, less-frequent signal; the ts-core gate is what blocks merges.
+  macos-app:
+    name: macOS build (sidecar + Tauri + native tests)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - name: Build the Swift sidecar (universal)
+        run: scripts/build-sidecar.sh release
+      - name: Native tests — clock sync (§5.3) + render parity (§6.6)
+        run: swift test --package-path native/dollyd
+      - name: Build the Tauri app (unsigned)
+        run: pnpm --filter desktop tauri build --target universal-apple-darwin

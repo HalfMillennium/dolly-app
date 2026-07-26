@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Builds a signed, notarized DMG and publishes the Tauri updater manifest (BUILD_PLAN §8).
+# All signing material comes from repository secrets — nothing is hard-coded.
+jobs:
+  release-macos:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Import Developer ID certificate
+        env:
+          DEV_ID_CERT_P12_BASE64: ${{ secrets.DEV_ID_CERT_P12_BASE64 }}
+          DEV_ID_CERT_PASSWORD: ${{ secrets.DEV_ID_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          keychain=build.keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain"
+          echo "$DEV_ID_CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security import /tmp/cert.p12 -k "$keychain" -P "$DEV_ID_CERT_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" login.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$keychain"
+          rm -f /tmp/cert.p12
+
+      - name: Store notarytool credentials
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials dolly-notary \
+            --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r build
+      - run: scripts/build-sidecar.sh release
+
+      - name: Build + sign the app (Tauri)
+        env:
+          # Tauri signs the sidecar first then the bundle via our hooks; the updater plugin
+          # payload is signed with its OWN key, separate from the Developer ID key (§8).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_UPDATER_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_UPDATER_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.DEV_ID_APP }}
+        run: pnpm --filter desktop tauri build --target universal-apple-darwin
+
+      - name: Notarize + staple
+        env:
+          DEV_ID_APP: ${{ secrets.DEV_ID_APP }}
+          NOTARY_PROFILE: dolly-notary
+          APP_PATH: apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/DOLLY.app
+          DMG_PATH: ""
+        run: scripts/sign-and-notarize.sh
+
+      - name: Publish DMG + updater manifest
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            apps/desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+        # A static latest.json updater manifest (§8) is generated from these artifacts and
+        # uploaded to the release/CDN by a follow-up step or the tauri-action integration.
