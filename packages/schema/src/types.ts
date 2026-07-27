@@ -129,6 +129,41 @@ export interface AutoZoomMeta {
   generatedAt: string;
 }
 
+// --- AI-optimized cursor path ("Cursorcraft" feature) ---------------------------------
+
+// PathKey ({t,x,y}) is the geometry type owned by math.ts (the Catmull-Rom evaluator).
+// Import it for use here; math.ts is its single export point (via index's `export *`).
+import type { PathKey } from "./math.js";
+
+/** A click, re-timed to the optimized path; drives the synthetic-cursor ripple. */
+export interface ClickMark {
+  t: number;
+  x: number;
+  y: number;
+  button?: MouseButton;
+}
+
+export type CursorPathMode = "pathClicks" | "full";
+
+/**
+ * A re-authored ("AI-optimized") cursor performance. When present and enabled, the synthetic
+ * cursor follows `keyframes` (evaluated with the shared Catmull-Rom math) and ripples from
+ * `clicks`, instead of the raw telemetry track. `origin` follows the same auto/manual rule as
+ * zooms (§3.3): regenerating replaces an `auto` path; a user edit flips it to `manual`.
+ */
+export interface CursorPath {
+  origin: ZoomOrigin;
+  mode: CursorPathMode;
+  keyframes: PathKey[];
+  clicks: ClickMark[];
+}
+
+export interface CursorOptMeta {
+  lastRunParams: Record<string, unknown>;
+  generatedAt: string;
+  source: "local" | "llm";
+}
+
 export interface Project {
   version: 1;
   source: Source;
@@ -139,6 +174,8 @@ export interface Project {
   zooms: Zoom[];
   speed: SpeedSegment[];
   autoZoom?: AutoZoomMeta;
+  cursorPath?: CursorPath;
+  cursorOpt?: CursorOptMeta;
 }
 
 // --- sidecar protocol (§3.4) -----------------------------------------------------------

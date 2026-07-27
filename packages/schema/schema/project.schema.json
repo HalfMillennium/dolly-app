@@ -126,6 +126,52 @@
         "lastRunParams": { "type": "object" },
         "generatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "cursorPath": {
+      "type": "object",
+      "required": ["origin", "mode", "keyframes", "clicks"],
+      "additionalProperties": false,
+      "properties": {
+        "origin": { "type": "string", "enum": ["auto", "manual"] },
+        "mode": { "type": "string", "enum": ["pathClicks", "full"] },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "clicks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y": { "type": "number", "minimum": 0, "maximum": 1 },
+              "button": { "type": "string", "enum": ["left", "right", "other"] }
+            }
+          }
+        }
+      }
+    },
+    "cursorOpt": {
+      "type": "object",
+      "required": ["lastRunParams", "generatedAt", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "lastRunParams": { "type": "object" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "source": { "type": "string", "enum": ["local", "llm"] }
+      }
     }
   },
   "$defs": {

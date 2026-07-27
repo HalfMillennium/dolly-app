@@ -71,6 +71,22 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9
 
+  packages/cursoropt:
+    dependencies:
+      '@dolly/autozoom':
+        specifier: workspace:*
+        version: link:../autozoom
+      '@dolly/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9
+
   packages/schema:
     devDependencies:
       ajv:

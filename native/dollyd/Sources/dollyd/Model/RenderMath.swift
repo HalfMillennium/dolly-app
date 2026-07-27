@@ -287,3 +287,56 @@ public func normDistance(_ ax: Double, _ ay: Double, _ bx: Double, _ by: Double)
     let dy = ay - by
     return (dx * dx + dy * dy).squareRoot() / 2.0.squareRoot()
 }
+
+// MARK: - Catmull-Rom spline (math.ts catmullRom / catmullRomAt — Cursorcraft feature)
+
+/// A timestamped point on a cursor path; x/y normalized [0,1] top-left. Mirrors math.ts PathKey.
+public struct RMPathKey {
+    public let t: Double
+    public let x: Double
+    public let y: Double
+    public init(t: Double, x: Double, y: Double) {
+        self.t = t
+        self.x = x
+        self.y = y
+    }
+}
+
+/// Uniform Catmull-Rom (tension 0.5) of one scalar across p0..p3 at local `u` in [0,1]
+/// (segment p1 -> p2). MUST match math.ts `catmullRom` exactly — §6.6 parity.
+public func catmullRom(_ p0: Double, _ p1: Double, _ p2: Double, _ p3: Double, _ u: Double) -> Double {
+    let u2 = u * u
+    let u3 = u2 * u
+    return 0.5
+        * (2 * p1
+            + (-p0 + p2) * u
+            + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2
+            + (-p0 + 3 * p1 - 3 * p2 + p3) * u3)
+}
+
+/// Evaluate a Catmull-Rom cursor path at time `t`; clamps outside the key range. Mirrors
+/// math.ts `catmullRomAt`. `keys` must be sorted by `t`.
+public func catmullRomAt(_ keys: [RMPathKey], _ t: Double) -> RMFocal {
+    let n = keys.count
+    if n == 0 { return RMFocal(x: 0.5, y: 0.5) }
+    if n == 1 { return RMFocal(x: keys[0].x, y: keys[0].y) }
+    if t <= keys[0].t { return RMFocal(x: keys[0].x, y: keys[0].y) }
+    let last = keys[n - 1]
+    if t >= last.t { return RMFocal(x: last.x, y: last.y) }
+
+    var lo = 0
+    var hi = n - 1
+    while hi - lo > 1 {
+        let mid = (lo + hi) >> 1
+        if keys[mid].t <= t { lo = mid } else { hi = mid }
+    }
+    let p1 = keys[lo]
+    let p2 = keys[hi]
+    let p0 = lo - 1 >= 0 ? keys[lo - 1] : p1
+    let p3 = hi + 1 < n ? keys[hi + 1] : p2
+    let span = (p2.t - p1.t) == 0 ? 1 : (p2.t - p1.t)
+    let u = clamp((t - p1.t) / span, 0, 1)
+    return RMFocal(
+        x: catmullRom(p0.x, p1.x, p2.x, p3.x, u),
+        y: catmullRom(p0.y, p1.y, p2.y, p3.y, u))
+}

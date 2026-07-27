@@ -312,3 +312,69 @@ export function normDistance(
   const dy = ay - by;
   return Math.sqrt(dx * dx + dy * dy) / Math.SQRT2;
 }
+
+// ---------------------------------------------------------------------------------------
+// Catmull-Rom spline (AI-optimized cursor path, "Cursorcraft" feature)
+// ---------------------------------------------------------------------------------------
+
+/** A timestamped point on a cursor path, x/y normalized [0,1] top-left. */
+export interface PathKey {
+  t: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * Uniform Catmull-Rom interpolation (tension 0.5) of one scalar component across the four
+ * control values p0..p3, at local parameter `u` in [0,1] (the segment is p1 -> p2).
+ *
+ * This is the position source for the optimized synthetic cursor and MUST be evaluated
+ * identically in the TS preview renderer and the Swift export renderer (see math.ts header;
+ * mirror is RenderMath.swift, guarded by the §6.6 parity test).
+ */
+export function catmullRom(p0: number, p1: number, p2: number, p3: number, u: number): number {
+  const u2 = u * u;
+  const u3 = u2 * u;
+  return (
+    0.5 *
+    (2 * p1 +
+      (-p0 + p2) * u +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * u2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * u3)
+  );
+}
+
+/**
+ * Evaluate a Catmull-Rom cursor path (a time-sorted list of keyframes) at time `t`. Positions
+ * before the first / after the last key are clamped to the endpoints. The segment containing
+ * `t` is found by binary search; the local parameter is the time fraction within that segment,
+ * and the two outer control points are the neighbours (clamped at the ends). Returns the
+ * center (0.5, 0.5) for an empty path.
+ */
+export function catmullRomAt(keys: PathKey[], t: number): { x: number; y: number } {
+  const n = keys.length;
+  if (n === 0) return { x: 0.5, y: 0.5 };
+  if (n === 1) return { x: keys[0]!.x, y: keys[0]!.y };
+  if (t <= keys[0]!.t) return { x: keys[0]!.x, y: keys[0]!.y };
+  const last = keys[n - 1]!;
+  if (t >= last.t) return { x: last.x, y: last.y };
+
+  // binary search for segment [i, i+1] with keys[i].t <= t < keys[i+1].t
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (keys[mid]!.t <= t) lo = mid;
+    else hi = mid;
+  }
+  const p1 = keys[lo]!;
+  const p2 = keys[hi]!;
+  const p0 = keys[lo - 1] ?? p1;
+  const p3 = keys[hi + 1] ?? p2;
+  const span = p2.t - p1.t || 1;
+  const u = clamp((t - p1.t) / span, 0, 1);
+  return {
+    x: catmullRom(p0.x, p1.x, p2.x, p3.x, u),
+    y: catmullRom(p0.y, p1.y, p2.y, p3.y, u),
+  };
+}

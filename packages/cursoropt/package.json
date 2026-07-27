@@ -1,0 +1,28 @@
+{
+  "name": "@dolly/cursoropt",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pure, deterministic AI-optimized cursor: re-author the cursor's path and click timing from a telemetry track into a clean, ad-ready performance (Cursorcraft). No filesystem or DOM access.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dolly/schema": "workspace:*",
+    "@dolly/autozoom": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

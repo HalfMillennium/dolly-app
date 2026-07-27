@@ -34,6 +34,12 @@ export {
   type AutoZoomControls,
 } from "./params.js";
 
+// Pipeline primitives, re-exported for sibling packages (e.g. @dolly/cursoropt) that need to
+// extract "targets" from a cursor track without reimplementing resampling/scoring/clustering.
+export { positionSampler, resampleAndFilter, type Sample } from "./track.js";
+export { scoreEvents, type ScoredEvent, type ScoreOptions } from "./score.js";
+export { clusterEvents, filterClusters, type Cluster } from "./cluster.js";
+
 /**
  * Generate zoom segments from a cursor telemetry track. Steps 1-8 of §6.4.
  *

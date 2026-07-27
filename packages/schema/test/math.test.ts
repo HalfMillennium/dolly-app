@@ -11,7 +11,10 @@ import {
   springStep,
   OneEuroFilter,
   normDistance,
+  catmullRom,
+  catmullRomAt,
   type Rect,
+  type PathKey,
 } from "../src/math.js";
 
 describe("focalClamp (§6.3)", () => {
@@ -162,5 +165,60 @@ describe("OneEuroFilter (§6.4)", () => {
 describe("normDistance", () => {
   it("is 1 across the full diagonal", () => {
     expect(normDistance(0, 0, 1, 1)).toBeCloseTo(1, 9);
+  });
+});
+
+describe("catmullRom / catmullRomAt (Cursorcraft)", () => {
+  it("passes through the endpoints of a segment", () => {
+    // at u=0 -> p1, at u=1 -> p2
+    expect(catmullRom(0, 0.2, 0.8, 1, 0)).toBeCloseTo(0.2, 9);
+    expect(catmullRom(0, 0.2, 0.8, 1, 1)).toBeCloseTo(0.8, 9);
+  });
+
+  it("reproduces a straight line exactly (collinear controls)", () => {
+    // control values on the line f(u)=u should interpolate linearly
+    expect(catmullRom(-1, 0, 1, 2, 0.5)).toBeCloseTo(0.5, 9);
+    expect(catmullRom(-1, 0, 1, 2, 0.25)).toBeCloseTo(0.25, 9);
+  });
+
+  const keys: PathKey[] = [
+    { t: 0, x: 0.1, y: 0.1 },
+    { t: 1, x: 0.4, y: 0.2 },
+    { t: 2, x: 0.6, y: 0.7 },
+    { t: 3, x: 0.9, y: 0.8 },
+  ];
+
+  it("passes through every keyframe at its timestamp", () => {
+    for (const k of keys) {
+      const p = catmullRomAt(keys, k.t);
+      expect(p.x).toBeCloseTo(k.x, 9);
+      expect(p.y).toBeCloseTo(k.y, 9);
+    }
+  });
+
+  it("clamps before the first and after the last keyframe", () => {
+    expect(catmullRomAt(keys, -5)).toEqual({ x: 0.1, y: 0.1 });
+    expect(catmullRomAt(keys, 99)).toEqual({ x: 0.9, y: 0.8 });
+  });
+
+  it("stays within the convex hull for a monotone path (no wild overshoot)", () => {
+    for (let t = 0; t <= 3; t += 0.05) {
+      const p = catmullRomAt(keys, t);
+      expect(p.x).toBeGreaterThanOrEqual(0.05);
+      expect(p.x).toBeLessThanOrEqual(0.95);
+      expect(p.y).toBeGreaterThanOrEqual(0.05);
+      expect(p.y).toBeLessThanOrEqual(0.85);
+    }
+  });
+
+  it("handles empty and single-point paths", () => {
+    expect(catmullRomAt([], 1)).toEqual({ x: 0.5, y: 0.5 });
+    expect(catmullRomAt([{ t: 0, x: 0.3, y: 0.7 }], 5)).toEqual({ x: 0.3, y: 0.7 });
+  });
+
+  it("is deterministic", () => {
+    const a = Array.from({ length: 20 }, (_, i) => catmullRomAt(keys, i * 0.15));
+    const b = Array.from({ length: 20 }, (_, i) => catmullRomAt(keys, i * 0.15));
+    expect(a).toEqual(b);
   });
 });
