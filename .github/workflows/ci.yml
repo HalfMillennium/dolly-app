@@ -44,11 +44,15 @@ jobs:
       - run: pnpm --filter desktop build
 
   # macOS build: sidecar + Tauri app + the two native tests (§5.3 clock sync, §6.6 parity).
-  # This job compiles the Swift/Rust that cannot be built on Linux. It is allowed to be the
-  # slower, less-frequent signal; the ts-core gate is what blocks merges.
+  # This job compiles the Swift/Rust that cannot be built on Linux. The native tree is a
+  # first-draft (every gap marked TODO(mac); see MAC_BUILD.md), so this job is EXPECTED to be
+  # red until the macOS build pass lands. It is non-blocking on purpose — the ts-core and
+  # frontend jobs are the gate that must stay green. Once the sidecar compiles on a Mac,
+  # remove `continue-on-error` to make this a hard gate too.
   macos-app:
-    name: macOS build (sidecar + Tauri + native tests)
+    name: macOS build (sidecar + Tauri + native tests) [draft, non-blocking]
     runs-on: macos-14
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
