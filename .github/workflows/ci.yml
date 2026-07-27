@@ -39,7 +39,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @dolly/schema build && pnpm --filter @dolly/autozoom build
+      # Build every workspace package the app depends on (schema, autozoom, cursoropt, …) so
+      # their dist/ types resolve during the desktop typecheck. `--filter '!desktop'` skips the
+      # app itself (built by the next step).
+      - run: pnpm -r --filter '!desktop' build
       - run: pnpm --filter desktop typecheck
       - run: pnpm --filter desktop build
 
