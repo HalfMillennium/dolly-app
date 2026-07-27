@@ -23,6 +23,10 @@ serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "process", "io-util", "sync", "macros", "time"] }
 thiserror = "1"
 anyhow = "1"
+# AI-director (Cursorcraft §4): raw-HTTPS call to the Claude Messages API (no Rust SDK) and
+# OS-keychain storage for the user's API key. rustls avoids a system OpenSSL dependency.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+keyring = "3"
 
 [[bin]]
 name = "dolly"

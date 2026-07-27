@@ -3,6 +3,7 @@
 // canonical Tauri header and costs nothing.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod director;
 mod projects;
 mod sidecar;
 
@@ -188,6 +189,8 @@ fn main() {
             open_project,
             save_project,
             recent_projects,
+            director::director_available,
+            director::optimize_director,
         ])
         .run(tauri::generate_context!())
         .expect("error while running DOLLY");
