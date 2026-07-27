@@ -111,3 +111,15 @@ adjusts two of them, and exports a 1080p MP4 in under half the recording's durat
 | Parity | `.../Tests/dollydTests/ParityTests.swift`, `scripts/parity/` | headless preview harness, cross-language PNG diff |
 | Shell | `apps/desktop/src-tauri/**` | `cargo check`/`tauri build` (needs webkit + macOS), sidecar supervision live |
 | Signing | `scripts/sign-and-notarize.sh`, `.github/workflows/release.yml` | real Developer ID cert + notarytool credentials |
+| Cursorcraft — director | `apps/desktop/src-tauri/src/director.rs` | OS-keychain read of the Claude key + live Messages API call (`reqwest`); wire a Settings UI to store the key |
+| Cursorcraft — export | `.../Export/Renderer.swift` | compile the optimized-cursor position source (shared `catmullRomAt` over `cursorPath.keyframes` + click-mark ripples) |
+| Cursorcraft — parity | `.../Tests/dollydTests/ParityTests.swift`, `scripts/parity/` | add the `cursorcraft` fixture (project.json with a `cursorPath`) and render its preview PNGs with `showOptimized: true` |
+
+## Cursorcraft (AI-optimized cursor) — status
+
+The platform-independent core is done and tested on Linux: `packages/cursoropt` (the pure
+optimizer, 33 tests) and the shared `catmullRom`/`catmullRomAt` spline in `packages/schema`
+(+ its `RenderMath.swift` mirror). The React editor wiring type-checks and vite-builds. What
+remains for the Mac pass is the three rows above — compile the Swift export path, wire the
+optional Claude director (key storage + live call), and add the `cursorcraft` parity fixture so
+the exported MP4 is proven pixel-identical to the preview.

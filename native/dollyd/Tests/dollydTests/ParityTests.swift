@@ -111,6 +111,35 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(s1.vel, vel, accuracy: 1e-12)
     }
 
+    /// Catmull-Rom spline (Cursorcraft): the optimized cursor's position source must match the
+    /// TS `catmullRomAt` exactly, or preview and export diverge. Endpoint + straight-line +
+    /// keyframe pass-through mirror packages/schema/test/math.test.ts.
+    func testCatmullRomMatchesFormula() {
+        // segment endpoints
+        XCTAssertEqual(catmullRom(0, 0.2, 0.8, 1, 0), 0.2, accuracy: 1e-12)
+        XCTAssertEqual(catmullRom(0, 0.2, 0.8, 1, 1), 0.8, accuracy: 1e-12)
+        // collinear controls interpolate linearly
+        XCTAssertEqual(catmullRom(-1, 0, 1, 2, 0.5), 0.5, accuracy: 1e-12)
+        XCTAssertEqual(catmullRom(-1, 0, 1, 2, 0.25), 0.25, accuracy: 1e-12)
+
+        let keys = [
+            RMPathKey(t: 0, x: 0.1, y: 0.1),
+            RMPathKey(t: 1, x: 0.4, y: 0.2),
+            RMPathKey(t: 2, x: 0.6, y: 0.7),
+            RMPathKey(t: 3, x: 0.9, y: 0.8),
+        ]
+        for k in keys {
+            let p = catmullRomAt(keys, k.t)
+            XCTAssertEqual(p.x, k.x, accuracy: 1e-9)
+            XCTAssertEqual(p.y, k.y, accuracy: 1e-9)
+        }
+        // clamps outside the key range
+        let before = catmullRomAt(keys, -5)
+        XCTAssertEqual(before.x, 0.1, accuracy: 1e-12)
+        let after = catmullRomAt(keys, 99)
+        XCTAssertEqual(after.x, 0.9, accuracy: 1e-12)
+    }
+
     // MARK: - Layer 2: full pixel parity (Mac-only)
 
     /// §6.6 pixel parity for the three fixture projects. Skipped unless the reference PNGs
@@ -120,7 +149,11 @@ final class ParityTests: XCTestCase {
         guard let refDir = ProcessInfo.processInfo.environment["DOLLY_PARITY_DIR"] else {
             throw XCTSkip("set DOLLY_PARITY_DIR to the scripts/parity output (preview PNGs)")
         }
-        let fixtures = ["form-fill", "code-editing", "dashboard"] // three §6.6 fixtures
+        // Three §6.6 fixtures, plus "cursorcraft" — a project whose project.json carries an
+        // AI-optimized `cursorPath`, so parity also covers the optimized position source
+        // (catmullRomAt over keyframes + click-mark ripples). The harness renders its preview
+        // PNGs with showOptimized=true so both sides use the optimized path.
+        let fixtures = ["form-fill", "code-editing", "dashboard", "cursorcraft"]
         let refRoot = URL(fileURLWithPath: refDir, isDirectory: true)
 
         for fixture in fixtures {

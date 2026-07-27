@@ -201,6 +201,44 @@ public struct AutoZoomMeta: Codable {
     public var generatedAt: String
 }
 
+// MARK: - AI-optimized cursor path ("Cursorcraft")
+
+/// A timestamped keyframe on the optimized cursor path; x/y normalized [0,1] top-left.
+public struct PathKey: Codable {
+    public var t: Double
+    public var x: Double
+    public var y: Double
+}
+
+/// A click re-timed onto the optimized path; drives the synthetic-cursor ripple.
+public struct ClickMark: Codable {
+    public var t: Double
+    public var x: Double
+    public var y: Double
+    public var button: MouseButton?
+}
+
+public enum CursorPathMode: String, Codable {
+    case pathClicks
+    case full
+}
+
+/// A re-authored ("AI-optimized") cursor performance (mirror of the TS `CursorPath`). When
+/// present, the export renderer follows `keyframes` (via shared `catmullRomAt`) and ripples
+/// from `clicks` instead of the raw telemetry track — identical to the preview (§6.6).
+public struct CursorPath: Codable {
+    public var origin: String  // "auto" | "manual"
+    public var mode: CursorPathMode
+    public var keyframes: [PathKey]
+    public var clicks: [ClickMark]
+}
+
+public struct CursorOptMeta: Codable {
+    public var lastRunParams: JSONValue
+    public var generatedAt: String
+    public var source: String  // "local" | "llm"
+}
+
 public struct Project: Codable {
     public var version: Int
     public var source: Source
@@ -211,6 +249,8 @@ public struct Project: Codable {
     public var zooms: [Zoom]
     public var speed: [SpeedSegment]
     public var autoZoom: AutoZoomMeta?
+    public var cursorPath: CursorPath?
+    public var cursorOpt: CursorOptMeta?
 }
 
 // MARK: - Sidecar protocol (§3.4)

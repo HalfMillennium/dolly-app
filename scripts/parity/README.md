@@ -20,6 +20,11 @@ times, not just steady state — and for each timestamp:
 Both renderers consume the shared math from `packages/schema` (`math.ts` in TS, its
 `RenderMath.swift` port), which is what makes parity achievable in the first place.
 
+A fourth fixture, **`cursorcraft`**, carries an AI-optimized `cursorPath` in its `project.json`
+and is rendered with `showOptimized: true` on both sides, so the parity test also covers the
+optimized cursor position source (shared `catmullRomAt` over keyframes + click-mark ripples) —
+the Cursorcraft feature's preview/export contract.
+
 ## Status
 
 `render-preview.ts` is a `TODO(mac)` skeleton. Running the preview renderer outside the

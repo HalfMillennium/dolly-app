@@ -246,15 +246,31 @@ final class Renderer {
     /// Includes the click-ripple (§6.5) if enabled and a click is near `t`.
     private func makeCursor(t: Double, content: RMRect, zoom: CGAffineTransform,
                             zoomScale: Double, dt: Double) -> CIImage? {
-        guard let pos = cursor.smoothedPosition(at: t) else { return nil }
-        // hideWhenIdle fade (§6.5): if no movement for hideWhenIdle seconds, fade out.
-        let idle = cursor.idleSeconds(at: t)
-        let hideWhenIdle = project.cursor.hideWhenIdle
+        // AI-optimized path (Cursorcraft): when the project carries an optimized cursor path,
+        // export follows it — position via the SHARED catmullRomAt, ripples from its click
+        // marks — exactly as the TS preview renderer does, so preview == export (§6.6).
+        let optimized: CursorPath? = {
+            if let p = project.cursorPath, !p.keyframes.isEmpty { return p }
+            return nil
+        }()
+
+        let pos: RMFocal
         var alpha = 1.0
-        if hideWhenIdle > 0 && idle > hideWhenIdle {
-            // Fade over 0.3s past the threshold.
-            alpha = clamp(1.0 - (idle - hideWhenIdle) / 0.3, 0, 1)
-            if alpha <= 0 { return nil }
+        if let p = optimized {
+            let keys = p.keyframes.map { RMPathKey(t: $0.t, x: $0.x, y: $0.y) }
+            pos = catmullRomAt(keys, t)
+            // The optimized path is a curated take — it stays fully visible (no idle fade).
+        } else {
+            guard let sp = cursor.smoothedPosition(at: t) else { return nil }
+            pos = sp
+            // hideWhenIdle fade (§6.5): if no movement for hideWhenIdle seconds, fade out.
+            let idle = cursor.idleSeconds(at: t)
+            let hideWhenIdle = project.cursor.hideWhenIdle
+            if hideWhenIdle > 0 && idle > hideWhenIdle {
+                // Fade over 0.3s past the threshold.
+                alpha = clamp(1.0 - (idle - hideWhenIdle) / 0.3, 0, 1)
+                if alpha <= 0 { return nil }
+            }
         }
 
         // Position in source-normalized -> content-space point -> apply zoom (same transform
@@ -275,18 +291,42 @@ final class Renderer {
         var image = bitmap.transformed(by: CGAffineTransform(
             translationX: placed.x, y: placed.y - bitmap.extent.height))
 
-        // Click ripple (§6.5): expanding ring, 350ms, cubicOut, opacity 0.5 -> 0.
-        if project.cursor.clickRipple, let click = cursor.lastClick(before: t, within: 0.35) {
-            let age = t - click.t
-            let p = cubicOut(age / 0.35)
-            let ringRadius = 8.0 + 40.0 * p * cursorScale
-            let ringAlpha = 0.5 * (1.0 - p)
-            if let ripple = CursorArtwork.rippleImage(center: placed, radius: ringRadius,
-                                                      alpha: ringAlpha) {
-                image = image.composited(over: ripple)
+        // Click ripple (§6.5): expanding ring, 350ms, cubicOut, opacity 0.5 -> 0. In optimized
+        // mode the ring is centered on the click mark's own location (matching the TS renderer);
+        // in raw mode it follows the smoothed cursor position, as before.
+        if project.cursor.clickRipple {
+            var ringCenter: CGPoint?
+            var clickAge: Double?
+            if let p = optimized {
+                if let c = lastClickMark(p.clicks, before: t, within: 0.35) {
+                    let cx = content.x + c.x * content.w
+                    let cy = content.y + c.y * content.h
+                    ringCenter = CGPoint(x: cx, y: cy).applying(zoom)
+                    clickAge = t - c.t
+                }
+            } else if let click = cursor.lastClick(before: t, within: 0.35) {
+                ringCenter = placed
+                clickAge = t - click.t
+            }
+            if let center = ringCenter, let age = clickAge {
+                let p = cubicOut(age / 0.35)
+                let ringRadius = 8.0 + 40.0 * p * cursorScale
+                let ringAlpha = 0.5 * (1.0 - p)
+                if let ripple = CursorArtwork.rippleImage(center: center, radius: ringRadius,
+                                                          alpha: ringAlpha) {
+                    image = image.composited(over: ripple)
+                }
             }
         }
         return image
+    }
+
+    /// Most recent click mark at or before `t` within `window` seconds (clicks are time-sorted).
+    private func lastClickMark(_ clicks: [ClickMark], before t: Double,
+                               within window: Double) -> ClickMark? {
+        var best: ClickMark?
+        for c in clicks where c.t <= t && (t - c.t) <= window { best = c }
+        return best
     }
 
     // MARK: - Coordinate flip
