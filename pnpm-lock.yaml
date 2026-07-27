@@ -20,6 +20,9 @@ importers:
       '@dolly/autozoom':
         specifier: workspace:*
         version: link:../../packages/autozoom
+      '@dolly/cursoropt':
+        specifier: workspace:*
+        version: link:../../packages/cursoropt
       '@dolly/schema':
         specifier: workspace:*
         version: link:../../packages/schema

@@ -8,8 +8,8 @@
  *
  * All geometry/easing comes from `@dolly/schema/math` — nothing here re-derives it.
  */
-import type { CursorEvent, CursorStyle } from "@dolly/schema";
-import { OneEuroFilter, cubicOut, type Rect } from "@dolly/schema/math";
+import type { CursorEvent, CursorPath, CursorStyle } from "@dolly/schema";
+import { OneEuroFilter, catmullRomAt, cubicOut, type Rect } from "@dolly/schema/math";
 
 /** Nominal on-screen glyph height in canvas px, before cursor.size / zoom scaling. */
 const GLYPH_PX = 22;
@@ -100,10 +100,30 @@ function lastActivityBefore(cursor: CursorEvent[], t: number): number | null {
 }
 
 /**
+ * Position on the AI-optimized path at time `t` (BUILD_PLAN Cursorcraft §6.5). Evaluated with
+ * the SAME shared Catmull-Rom the Swift export renderer uses — this is what keeps the optimized
+ * cursor pixel-identical between preview and export (§6.6).
+ */
+export function optimizedPositionAt(path: CursorPath, t: number): CursorPoint {
+  return catmullRomAt(path.keyframes, t);
+}
+
+/** Options for choosing the optimized cursor path over the raw telemetry track. */
+export interface CursorSource {
+  /** the AI-optimized path, if one exists on the project */
+  path?: CursorPath | null;
+  /** whether to render the optimized path (before/after toggle) */
+  useOptimized?: boolean;
+}
+
+/**
  * Draw the synthetic cursor for the current frame.
  *
  * Must be called WHILE the §6.3 zoom transform is active: positions are in content-rect
  * coordinates and the glyph is drawn at `1/zoomScale` so it stays a constant on-screen size.
+ *
+ * When `src.useOptimized` is set and an optimized `src.path` is present, the cursor follows the
+ * re-authored path + click marks instead of the raw telemetry track (identical to export).
  */
 export function drawCursor(
   ctx: CanvasRenderingContext2D,
@@ -112,15 +132,22 @@ export function drawCursor(
   style: CursorStyle,
   zoomScale: number,
   content: Rect,
+  src: CursorSource = {},
 ): void {
   if (!style.visible) return;
 
-  const pos = smoothedPositionAt(cursor, time, style.smoothing);
+  const optimized =
+    !!src.useOptimized && !!src.path && src.path.keyframes.length > 0 ? src.path : null;
+
+  const pos = optimized
+    ? optimizedPositionAt(optimized, time)
+    : smoothedPositionAt(cursor, time, style.smoothing);
   if (!pos) return;
 
-  // hideWhenIdle fade
+  // hideWhenIdle fade — only for the raw track; the optimized path is a curated take that
+  // stays fully visible.
   let alpha = 1;
-  if (style.hideWhenIdle > 0) {
+  if (!optimized && style.hideWhenIdle > 0) {
     const last = lastActivityBefore(cursor, time);
     if (last !== null) {
       const idle = time - last;
@@ -138,17 +165,23 @@ export function drawCursor(
   const glyphScale = (GLYPH_PX / GLYPH_UNITS) * style.size / zoomScale;
 
   // --- click ripple(s) (drawn under the glyph) ---
+  // Source of clicks: the optimized path's click marks, else `down` events on the raw track.
+  const clickPoints: Array<{ t: number; x: number; y: number }> = optimized
+    ? optimized.clicks
+    : cursor
+        .filter((e) => e.e === "down" && e.x !== undefined && e.y !== undefined)
+        .map((e) => ({ t: e.t, x: e.x as number, y: e.y as number }));
+
   if (style.clickRipple) {
-    for (const e of cursor) {
-      if (e.e !== "down" || e.x === undefined || e.y === undefined) continue;
-      const age = (time - e.t) * 1000;
+    for (const c of clickPoints) {
+      const age = (time - c.t) * 1000;
       if (age < 0 || age > RIPPLE_MS) continue;
       const k = age / RIPPLE_MS;
       const eased = cubicOut(k);
       const radius = (eased * RIPPLE_MAX_PX) / zoomScale;
       const rippleAlpha = 0.5 * (1 - eased) * alpha;
-      const rx = content.x + e.x * content.w;
-      const ry = content.y + e.y * content.h;
+      const rx = content.x + c.x * content.w;
+      const ry = content.y + c.y * content.h;
       ctx.save();
       ctx.globalAlpha = rippleAlpha;
       ctx.strokeStyle = "#ffffff";

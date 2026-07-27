@@ -216,6 +216,30 @@ export function optimizeCursor(
   return { cursorPath, retimedZooms };
 }
 
+/**
+ * Build the compact, privacy-preserving interaction summary the AI director consumes: the
+ * ordered targets (normalized coordinates + timing + click flag) and the duration. Deliberately
+ * contains NO screen content and NO keystroke content — only where/when the cursor did things.
+ */
+export function summarizeForDirector(
+  cursor: CursorEvent[],
+  meta: GenerateMeta,
+  params: CursorOptParams = DEFAULT_PARAMS,
+): { targets: Array<{ t: number; x: number; y: number; click: boolean; score: number }>; duration: number } {
+  if (meta.duration <= 0 || cursor.length === 0) return { targets: [], duration: meta.duration };
+  const { targets } = extractTargets(cursor, meta, params);
+  return {
+    targets: targets.map((t) => ({
+      t: round(t.t),
+      x: round(t.x),
+      y: round(t.y),
+      click: t.click,
+      score: round(t.score),
+    })),
+    duration: meta.duration,
+  };
+}
+
 /** Convenience wrapper driven by the three sliders + mode toggle (Cursorcraft UI). */
 export function optimizeCursorFromControls(
   cursor: CursorEvent[],

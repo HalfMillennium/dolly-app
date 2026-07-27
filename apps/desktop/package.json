@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "DOLLY editor frontend — React 18 + TypeScript + Vite (BUILD_PLAN §6).",
+  "description": "DOLLY editor frontend \u2014 React 18 + TypeScript + Vite (BUILD_PLAN \u00a76).",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@dolly/autozoom": "workspace:*",
+    "@dolly/cursoropt": "workspace:*",
     "@dolly/schema": "workspace:*",
     "@tauri-apps/api": "^2.1.1",
     "immer": "^10.1.1",

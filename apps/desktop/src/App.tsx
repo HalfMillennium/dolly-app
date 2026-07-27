@@ -9,6 +9,7 @@ import { Stage } from "./editor/Stage";
 import { Timeline } from "./editor/Timeline";
 import { Inspector } from "./editor/Inspector";
 import { AutoZoomPanel } from "./editor/AutoZoomPanel";
+import { CursorOptimizePanel } from "./editor/CursorOptimizePanel";
 
 export function App() {
   const project = useEditor((s) => s.project);
@@ -87,6 +88,7 @@ export function App() {
         <div className="app__left">
           <Stage />
           <AutoZoomPanel />
+          <CursorOptimizePanel />
           <Timeline />
         </div>
         <aside className="app__right">

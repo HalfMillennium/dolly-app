@@ -61,6 +61,8 @@ export interface RenderOptions {
   /** suppress editor-only overlays; true when rendering for export parity */
   exportMode?: boolean;
   selectedZoomId?: string | null;
+  /** render the AI-optimized cursor path (from project.cursorPath) instead of the raw track */
+  showOptimized?: boolean;
 }
 
 /** The zoom active at time `t` (first whose [start,end] contains t), or null. */
@@ -215,9 +217,13 @@ export function renderPreview(ctx: CanvasRenderingContext2D, o: RenderOptions): 
     drawPlaceholder(ctx, content);
   }
 
-  // 7. synthetic cursor (scaled by 1/zoomScale, inside the zoom transform)
+  // 7. synthetic cursor (scaled by 1/zoomScale, inside the zoom transform). When enabled,
+  // follows the AI-optimized path (project.cursorPath) instead of the raw telemetry track.
   if (project.cursor.visible) {
-    drawCursor(ctx, o.cursor, o.time, project.cursor, s, content);
+    drawCursor(ctx, o.cursor, o.time, project.cursor, s, content, {
+      path: project.cursorPath ?? null,
+      useOptimized: o.showOptimized ?? false,
+    });
   }
 
   ctx.restore(); // undo zoom transform

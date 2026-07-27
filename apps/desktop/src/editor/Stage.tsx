@@ -70,6 +70,7 @@ export function Stage() {
         cursor: st.cursor,
         state: previewState.current,
         selectedZoomId: st.selectedZoomId,
+        showOptimized: st.showOptimized,
       });
     };
 

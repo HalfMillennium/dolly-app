@@ -16,6 +16,7 @@ import {
 import type {
   Composition,
   CursorEvent,
+  CursorPath,
   CursorStyle,
   Project,
   Trim,
@@ -28,6 +29,12 @@ import {
   mergeAuto,
   type AutoZoomControls,
 } from "@dolly/autozoom";
+import {
+  DEFAULT_CONTROLS as CURSOR_DEFAULT_CONTROLS,
+  optimizeCursorFromControls,
+  type CursorOptControls,
+  type BeatPlan,
+} from "@dolly/cursoropt";
 
 enablePatches();
 
@@ -57,6 +64,8 @@ export interface EditorState {
   playhead: number;
   selectedZoomId: string | null;
   playing: boolean;
+  /** editor-only before/after toggle: render the AI-optimized cursor path vs. the raw track */
+  showOptimized: boolean;
   past: HistoryEntry[];
   future: HistoryEntry[];
 
@@ -65,6 +74,7 @@ export interface EditorState {
   setPlayhead: (t: number) => void;
   setPlaying: (playing: boolean) => void;
   select: (id: string | null) => void;
+  setShowOptimized: (show: boolean) => void;
 
   // --- undoable project mutations ---
   updateComposition: (patch: Partial<Composition>) => void;
@@ -74,6 +84,11 @@ export interface EditorState {
   updateZoom: (id: string, patch: Partial<Zoom>) => void;
   removeZoom: (id: string) => void;
   runAutoZoom: (controls?: AutoZoomControls) => void;
+
+  // --- AI-optimized cursor ("Cursorcraft") ---
+  optimizeCursor: (controls?: CursorOptControls, beats?: BeatPlan) => void;
+  updateCursorPath: (patch: Partial<CursorPath>) => void;
+  clearCursorPath: () => void;
 
   undo: () => void;
   redo: () => void;
@@ -99,6 +114,7 @@ export const useEditor = create<EditorState>((set, get) => {
     playhead: 0,
     selectedZoomId: null,
     playing: false,
+    showOptimized: true,
     past: [],
     future: [],
 
@@ -109,6 +125,8 @@ export const useEditor = create<EditorState>((set, get) => {
         playhead: project ? project.trim.in : 0,
         selectedZoomId: null,
         playing: false,
+        // show the optimized path by default when the opened project already has one
+        showOptimized: !!project?.cursorPath,
         past: [],
         future: [],
       }),
@@ -116,6 +134,7 @@ export const useEditor = create<EditorState>((set, get) => {
     setPlayhead: (t) => set({ playhead: t }),
     setPlaying: (playing) => set({ playing }),
     select: (id) => set({ selectedZoomId: id }),
+    setShowOptimized: (show) => set({ showOptimized: show }),
 
     updateComposition: (patch) =>
       commit((d) => {
@@ -203,6 +222,52 @@ export const useEditor = create<EditorState>((set, get) => {
           generatedAt: new Date().toISOString(),
         };
       });
+    },
+
+    optimizeCursor: (controls = CURSOR_DEFAULT_CONTROLS, beats) => {
+      const state = get();
+      const project = state.project;
+      if (!project) return;
+      const meta = {
+        duration: project.source.duration,
+        aspect: project.source.width / project.source.height,
+      };
+      const { cursorPath, retimedZooms } = optimizeCursorFromControls(
+        state.cursor,
+        meta,
+        controls,
+        beats,
+      );
+      commit((d) => {
+        d.cursorPath = cursorPath;
+        // "full" mode re-times the camera; merge preserving any manual zooms (§3.3).
+        if (controls.mode === "full" && retimedZooms) {
+          d.zooms = mergeAuto(project.zooms, retimedZooms);
+        }
+        d.cursorOpt = {
+          lastRunParams: { ...controls },
+          generatedAt: new Date().toISOString(),
+          source: beats?.source ?? "local",
+        };
+      });
+      set({ showOptimized: true });
+    },
+
+    // A user edit to the (auto) optimized path flips it to manual so a later Regenerate
+    // knows the user has taken ownership (mirrors the zoom auto->manual promotion, §3.3).
+    updateCursorPath: (patch) =>
+      commit((d) => {
+        if (!d.cursorPath) return;
+        d.cursorPath = { ...d.cursorPath, ...patch };
+        if (patch.origin === undefined) d.cursorPath.origin = "manual";
+      }),
+
+    clearCursorPath: () => {
+      commit((d) => {
+        delete d.cursorPath;
+        delete d.cursorOpt;
+      });
+      set({ showOptimized: false });
     },
 
     undo: () => {
