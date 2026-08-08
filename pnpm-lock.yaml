@@ -66,6 +66,28 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(jsdom@25.0.1)
 
+  packages/player:
+    dependencies:
+      '@dolly/cursor':
+        specifier: workspace:*
+        version: link:../cursor
+      '@dolly/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@dolly/selector':
+        specifier: workspace:*
+        version: link:../selector
+    devDependencies:
+      jsdom:
+        specifier: ^25.0.1
+        version: 25.0.1
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(jsdom@25.0.1)
+
   packages/recorder:
     dependencies:
       '@dolly/schema':
