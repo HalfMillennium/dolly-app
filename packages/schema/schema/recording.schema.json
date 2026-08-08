@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dolly.local/schema/recording.schema.json",
+  "title": "DollyRecording",
+  "description": "A DOM-aware walkthrough recording: an ordered list of interaction steps with self-healing locators, plus optional tab video and a precomputed cursor path.",
+  "type": "object",
+  "required": ["version", "id", "title", "createdAt", "startUrl", "viewport", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "startUrl": { "type": "string" },
+    "viewport": {
+      "type": "object",
+      "required": ["w", "h"],
+      "additionalProperties": false,
+      "properties": {
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "h": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "steps": { "type": "array", "items": { "$ref": "#/$defs/step" } },
+    "video": {
+      "type": "object",
+      "required": ["format", "width", "height", "duration"],
+      "additionalProperties": false,
+      "properties": {
+        "format": { "const": "webm" },
+        "width": { "type": "integer", "exclusiveMinimum": 0 },
+        "height": { "type": "integer", "exclusiveMinimum": 0 },
+        "duration": { "type": "number", "minimum": 0 }
+      }
+    },
+    "cursorPath": { "$ref": "#/$defs/cursorPath" }
+  },
+  "$defs": {
+    "locator": {
+      "type": "object",
+      "required": ["strategy", "value", "weight"],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["id", "testid", "aria", "attr", "text", "css", "xpath", "relative", "geom"]
+        },
+        "value": { "type": "string" },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "locatorSet": {
+      "type": "object",
+      "required": ["primary", "fallbacks"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": { "$ref": "#/$defs/locator" },
+        "fallbacks": { "type": "array", "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "rect2d": {
+      "type": "object",
+      "required": ["x", "y", "w", "h"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" },
+        "h": { "type": "number" }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["id", "t", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "t": { "type": "number", "minimum": 0 },
+        "action": {
+          "type": "string",
+          "enum": ["click", "dblclick", "input", "change", "submit", "scroll", "navigate", "hover", "keypress", "wait"]
+        },
+        "target": { "$ref": "#/$defs/locatorSet" },
+        "value": { "type": "string" },
+        "masked": { "type": "boolean" },
+        "key": { "type": "string" },
+        "url": { "type": "string" },
+        "frame": { "type": "string" },
+        "scroll": {
+          "type": "object",
+          "required": ["x", "y"],
+          "additionalProperties": false,
+          "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+        },
+        "rect": { "$ref": "#/$defs/rect2d" },
+        "liveMode": { "type": "string", "enum": ["auto", "coach", "inherit"] },
+        "caption": { "type": "string" },
+        "waitFor": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["element", "url", "delay"] },
+            "value": { "type": "string" },
+            "ms": { "type": "number", "minimum": 0 }
+          }
+        },
+        "destructive": { "type": "boolean" }
+      }
+    },
+    "cursorPath": {
+      "type": "object",
+      "required": ["origin", "mode", "keyframes", "clicks"],
+      "additionalProperties": false,
+      "properties": {
+        "origin": { "type": "string", "enum": ["auto", "manual"] },
+        "mode": { "type": "string", "enum": ["pathClicks", "full"] },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "clicks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "t": { "type": "number", "minimum": 0 },
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y": { "type": "number", "minimum": 0, "maximum": 1 },
+              "button": { "type": "string", "enum": ["left", "right", "other"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

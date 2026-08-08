@@ -1,85 +1,28 @@
 /**
- * TypeScript mirror of the DOLLY data contracts (BUILD_PLAN §3).
+ * DOLLY data contracts — the browser walkthrough Recording format.
  *
- * The JSON Schemas in `schema/` are the source of truth. In CI, `scripts/gen-ts.ts`
- * regenerates this file from them and `scripts/gen-swift.sh` regenerates the Swift Codable
- * structs — hand-maintaining divergent copies is how preview/export drift starts
- * (BUILD_PLAN §4). The committed copy here is kept in sync with the schema and guarded by
- * `test/schema-valid.test.ts`, which validates the §3 example documents against the schema.
+ * The JSON Schemas in `schema/` are the source of truth; `scripts/gen-ts.ts` regenerates types
+ * from them in CI, and `test/schema-valid.test.ts` validates example documents. Kept in sync by
+ * hand here for ergonomic discriminated unions.
  */
 
-// --- cursor.jsonl (§3.2) ---------------------------------------------------------------
+// --- cursor telemetry (shared with @dolly/autozoom, @dolly/cursoropt, @dolly/cursor) ----
 
 export type CursorEventKind = "move" | "down" | "up" | "drag" | "scroll" | "key";
 export type MouseButton = "left" | "right" | "other";
 
 export interface CursorEvent {
-  /** seconds, float, relative to the PTS of the first written video frame (§3.2, §5.3) */
+  /** seconds from recording start */
   t: number;
-  /** normalized [0,1] against the captured surface, origin top-left. Absent for `key`. */
+  /** normalized [0,1], origin top-left. Absent for `key`. */
   x?: number;
   y?: number;
   e: CursorEventKind;
-  /** button for down/up/drag */
   b?: MouseButton;
-  /** scroll delta */
   dy?: number;
 }
 
-// --- project.json (§3.3) ---------------------------------------------------------------
-
-export interface Source {
-  master: string;
-  proxy: string;
-  width: number;
-  height: number;
-  fps: number;
-  duration: number;
-  scale: number;
-}
-
-export type AudioRole = "system" | "mic";
-
-export interface AudioTrack {
-  file: string;
-  role: AudioRole;
-  gain: number;
-  muted: boolean;
-}
-
-export interface Trim {
-  in: number;
-  out: number;
-}
-
-export interface GradientBackdrop {
-  type: "gradient";
-  from: string;
-  to: string;
-  angle: number;
-}
-
-export interface SolidBackdrop {
-  type: "solid";
-  color: string;
-}
-
-export type Backdrop = GradientBackdrop | SolidBackdrop;
-
-export interface Shadow {
-  enabled: boolean;
-  opacity: number;
-  blur: number;
-  y: number;
-}
-
-export interface Composition {
-  backdrop: Backdrop;
-  padding: number;
-  radius: number;
-  shadow: Shadow;
-}
-
+/** Styling for the synthetic cursor overlay (used by @dolly/cursor). */
 export interface CursorStyle {
   visible: boolean;
   size: number;
@@ -88,24 +31,28 @@ export interface CursorStyle {
   hideWhenIdle: number;
 }
 
-export type FocalMode = "fixed" | "follow";
+// --- optimized cursor path (shared with @dolly/cursoropt, @dolly/cursor) ----------------
+
+// PathKey ({t,x,y}) is owned by math.ts (the Catmull-Rom evaluator).
+import type { PathKey } from "./math.js";
+
 export type ZoomOrigin = "auto" | "manual";
 export type ZoomEasing = "cubicInOut" | "cubicOut" | "linear";
+export type FocalMode = "fixed" | "follow";
 
 export interface FixedFocal {
   mode: "fixed";
   x: number;
   y: number;
 }
-
 export interface FollowFocal {
   mode: "follow";
   damping: number;
   track: "cursor";
 }
-
 export type ZoomFocal = FixedFocal | FollowFocal;
 
+/** A zoom segment (auto-zoom / cursoropt "full" mode); optional "zoom-to-element" polish. */
 export interface Zoom {
   id: string;
   start: number;
@@ -118,24 +65,7 @@ export interface Zoom {
   origin: ZoomOrigin;
 }
 
-export interface SpeedSegment {
-  start: number;
-  end: number;
-  rate: number;
-}
-
-export interface AutoZoomMeta {
-  lastRunParams: Record<string, unknown>;
-  generatedAt: string;
-}
-
-// --- AI-optimized cursor path ("Cursorcraft" feature) ---------------------------------
-
-// PathKey ({t,x,y}) is the geometry type owned by math.ts (the Catmull-Rom evaluator).
-// Import it for use here; math.ts is its single export point (via index's `export *`).
-import type { PathKey } from "./math.js";
-
-/** A click, re-timed to the optimized path; drives the synthetic-cursor ripple. */
+/** A click re-timed onto the optimized path; drives the synthetic-cursor ripple. */
 export interface ClickMark {
   t: number;
   x: number;
@@ -145,12 +75,7 @@ export interface ClickMark {
 
 export type CursorPathMode = "pathClicks" | "full";
 
-/**
- * A re-authored ("AI-optimized") cursor performance. When present and enabled, the synthetic
- * cursor follows `keyframes` (evaluated with the shared Catmull-Rom math) and ripples from
- * `clicks`, instead of the raw telemetry track. `origin` follows the same auto/manual rule as
- * zooms (§3.3): regenerating replaces an `auto` path; a user edit flips it to `manual`.
- */
+/** A smooth cursor performance derived from click targets, evaluated with the shared spline. */
 export interface CursorPath {
   origin: ZoomOrigin;
   mode: CursorPathMode;
@@ -158,125 +83,118 @@ export interface CursorPath {
   clicks: ClickMark[];
 }
 
-export interface CursorOptMeta {
-  lastRunParams: Record<string, unknown>;
-  generatedAt: string;
-  source: "local" | "llm";
+// --- the walkthrough Recording -----------------------------------------------------------
+
+/** How an element is located, one strategy. `weight` is a stability prior (higher = better). */
+export type LocatorStrategy =
+  | "id"
+  | "testid"
+  | "aria"
+  | "attr"
+  | "text"
+  | "css"
+  | "xpath"
+  | "relative"
+  | "geom";
+
+export interface Locator {
+  strategy: LocatorStrategy;
+  /** strategy-specific value (a CSS selector, XPath, accessible name, tag for geom, …) */
+  value: string;
+  weight: number;
 }
 
-export interface Project {
-  version: 1;
-  source: Source;
-  audio: AudioTrack[];
-  trim: Trim;
-  composition: Composition;
-  cursor: CursorStyle;
-  zooms: Zoom[];
-  speed: SpeedSegment[];
-  autoZoom?: AutoZoomMeta;
-  cursorPath?: CursorPath;
-  cursorOpt?: CursorOptMeta;
+/** A ranked set of locators for one element: the best plus ordered fallbacks (self-healing). */
+export interface LocatorSet {
+  primary: Locator;
+  fallbacks: Locator[];
 }
 
-// --- sidecar protocol (§3.4) -----------------------------------------------------------
+export type StepAction =
+  | "click"
+  | "dblclick"
+  | "input"
+  | "change"
+  | "submit"
+  | "scroll"
+  | "navigate"
+  | "hover"
+  | "keypress"
+  | "wait";
 
-export type Quality = "studio" | "quick";
-export type ExportPreset = "h264-1080p" | "h264-4k" | "hevc-4k" | "gif-720p";
+/** Per-step behavior when the walkthrough is driven live in the viewer's browser. */
+export type LiveMode = "auto" | "coach" | "inherit";
 
-export interface TargetDisplay {
-  kind: "display";
-  id: number;
+/** A viewport-normalized rectangle [0,1]; used for the overlay and geometric self-healing. */
+export interface Rect2D {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
-export interface TargetWindow {
-  kind: "window";
-  id: number;
-}
-export interface TargetRegion {
-  kind: "region";
-  display: number;
-  rect: { x: number; y: number; w: number; h: number };
-}
-export type CaptureTarget = TargetDisplay | TargetWindow | TargetRegion;
 
-export interface ReqListSources {
-  id: number;
-  cmd: "listSources";
+/** A precondition to satisfy before a step runs live (robust replay across async UIs). */
+export interface WaitCondition {
+  type: "element" | "url" | "delay";
+  /** a locator value (element), a URL substring (url) */
+  value?: string;
+  /** milliseconds (delay) */
+  ms?: number;
 }
-export interface ReqStart {
-  id: number;
-  cmd: "start";
-  target: CaptureTarget;
-  quality: Quality;
-  mic?: string | null;
-  systemAudio: boolean;
-  detectTyping?: boolean;
-  out: string;
-}
-export interface ReqStop {
-  id: number;
-  cmd: "stop";
-}
-export interface ReqExport {
-  id: number;
-  cmd: "export";
-  project: string;
-  out: string;
-  preset: ExportPreset;
-}
-export interface ReqPing {
-  id: number;
-  cmd: "ping";
-}
-export type SidecarRequest =
-  | ReqListSources
-  | ReqStart
-  | ReqStop
-  | ReqExport
-  | ReqPing;
 
-export interface DisplayInfo {
-  id: number;
+export interface Step {
+  id: string;
+  /** seconds from recording start */
+  t: number;
+  action: StepAction;
+  /** the acted-on element (absent for navigate / window scroll) */
+  target?: LocatorSet;
+  /** typed value for input/change; may be masked */
+  value?: string;
+  masked?: boolean;
+  /** key for keypress (navigation rhythm; never secret content) */
+  key?: string;
+  /** destination for navigate */
+  url?: string;
+  /** iframe path (same-origin) if the target lives in a frame */
+  frame?: string;
+  /** scroll position for scroll steps */
+  scroll?: { x: number; y: number };
+  /** element bounding rect at record time (viewport-normalized) */
+  rect?: Rect2D;
+  /** live-replay default for this step; the viewer may override */
+  liveMode?: LiveMode;
+  /** author annotation shown as a caption / tooltip */
+  caption?: string;
+  /** condition to await before running this step live */
+  waitFor?: WaitCondition;
+  /** marks an irreversible/destructive action — coached (not auto-run) unless forced */
+  destructive?: boolean;
+}
+
+export interface Viewport {
+  w: number;
+  h: number;
+}
+
+export interface RecordingVideo {
+  format: "webm";
   width: number;
   height: number;
-  scale: number;
-  name: string;
+  duration: number;
 }
-export interface WindowInfo {
-  id: number;
-  app: string;
+
+export interface Recording {
+  version: 1;
+  id: string;
   title: string;
-  frame: { x: number; y: number; w: number; h: number };
-  thumb?: string;
+  /** ISO-8601 */
+  createdAt: string;
+  startUrl: string;
+  viewport: Viewport;
+  steps: Step[];
+  /** optional real tab capture for "watch" mode */
+  video?: RecordingVideo;
+  /** optional precomputed smooth cursor path for the watch overlay (from @dolly/cursoropt) */
+  cursorPath?: CursorPath;
 }
-
-export interface RespOk {
-  id: number;
-  ok: true;
-  [k: string]: unknown;
-}
-export interface RespErr {
-  id: number;
-  ok: false;
-  code: string;
-  msg: string;
-}
-export type SidecarResponse = RespOk | RespErr;
-
-export interface EvRecording {
-  ev: "recording";
-  t: number;
-  dropped: number;
-}
-export interface EvExportProgress {
-  ev: "exportProgress";
-  p: number;
-  fps: number;
-}
-export interface EvError {
-  ev: "error";
-  code: string;
-  msg: string;
-}
-export type SidecarEvent = EvRecording | EvExportProgress | EvError;
-
-export type SidecarMessage = SidecarResponse | SidecarEvent;

@@ -17,8 +17,7 @@ const outDir = join(here, "..", "src", "generated");
 
 const files: Array<[string, string]> = [
   ["cursor.schema.json", "cursor.ts"],
-  ["project.schema.json", "project.ts"],
-  ["sidecar.schema.json", "sidecar.ts"],
+  ["recording.schema.json", "recording.ts"],
 ];
 
 await mkdir(outDir, { recursive: true });
