@@ -1,0 +1,29 @@
+{
+  "name": "@dolly/cursor",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Synthetic cursor overlay for the browser: draw an animated cursor + click ripples + spotlight over a page, and derive a smooth tutorial path between DOM targets.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dolly/schema": "workspace:*",
+    "@dolly/cursoropt": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
