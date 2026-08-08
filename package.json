@@ -2,7 +2,7 @@
   "name": "dolly",
   "version": "0.1.0",
   "private": true,
-  "description": "DOLLY — local-first macOS screen recorder with cursor-driven auto-zoom",
+  "description": "DOLLY — browser tool for DOM-aware, self-healing product walkthroughs: record clicks, watch as video with a rendered cursor, or replay live in your own browser (auto-run or coach)",
   "license": "UNLICENSED",
   "packageManager": "pnpm@10.0.0",
   "engines": {

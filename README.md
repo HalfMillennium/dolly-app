@@ -1,71 +1,84 @@
 # DOLLY
 
-Local-first macOS screen recorder with cursor-driven auto-zoom. No server, no account.
+**DOM-aware, self-healing product walkthroughs in the browser.** No native app, no server,
+no account.
 
-DOLLY captures a display, window, or region at up to 4K60 with system audio and mic on
-separate tracks, records a cursor telemetry track in the same clock domain as the video,
-and derives editable zoom segments from cursor motion automatically. Editing is
-non-destructive; export is native and faster than real time.
+An author records a click-through of any web app with the DOLLY Chrome extension. Viewers can
+then **watch it as a video with a rendered cursor**, *or* press play and have the walkthrough
+**performed live in their own browser** — the synthetic cursor moves to each element, spotlights
+it, and either does the action for them (*auto-run*) or coaches them to do it (*coach*).
 
-See the full technical build plan in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
+Recordings are **DOM-aware**: every step captures *which element* was acted on with a ranked set
+of resilient locators, so replay is **self-healing** — it still finds the target when the page
+drifts (renamed ids, changed classes, moved or re-worded elements). Product teams embed the whole
+thing with a single web component; **end users need no extension**.
+
+## How it works
+
+```
+ AUTHOR (Chrome extension)                    VIEWER (any product page, no extension)
+ ┌───────────────────────────┐                ┌────────────────────────────────────────┐
+ │ content: DOM recorder + HUD│── Step[] ┐     │  <dolly-walkthrough recording=…>        │
+ │ background: tabCapture→webm│          │     │   ├ WATCH: video + synthetic cursor      │
+ │ popup: review / annotate   │          ▼     │   └ LIVE:  selector.resolve() → self-heal│
+ └───────────────────────────┘   Recording{    │            → cursor.moveTo → spotlight    │
+                                  steps, video, │            → auto-run | coach            │
+                                  cursorPath}   └────────────────────────────────────────┘
+                                        │
+                                 export JSON (+webm) ────────────►  embed in product
+```
 
 ## Architecture at a glance
 
-| Component | Tech | Role |
+| Component | Package | Role |
 |---|---|---|
-| Shell | Tauri v2 (Rust + WKWebView) | app lifecycle, sidecar supervision, project bundle I/O |
-| Capture / export | Swift sidecar `dollyd` | ScreenCaptureKit + AVFoundation, spoken to over NDJSON on stdio |
-| Editor UI | React 18 + TypeScript + Vite | timeline, inspector, canvas preview |
-| Auto-zoom | pure TypeScript (`packages/autozoom`) | derives zoom segments from cursor telemetry |
-| Contracts | JSON Schema (`packages/schema`) | source of truth for `project.json` + `cursor.jsonl`, codegen'd to TS & Swift |
-
-## Repository layout
-
-```
-dolly/
-  apps/desktop/          # Tauri app (React frontend + Rust shell)
-  native/dollyd/         # Swift package -> single capture/export executable
-  packages/autozoom/     # pure TS auto-zoom library (no I/O, fixture-tested)
-  packages/schema/       # JSON Schema + generated TS & Swift types + shared math
-  scripts/               # build-sidecar, sign-and-notarize
-  .github/workflows/     # CI + release
-```
+| Recording format | `packages/schema` | `Recording` / `Step` / `LocatorSet` types + JSON Schema; shared render math (Catmull-Rom, springs, easing) |
+| **Self-healing locators** | `packages/selector` | generate ranked locators for an element; resolve them against a drifted DOM, healing by weighted candidate scoring |
+| DOM recorder | `packages/recorder` | map DOM events → `Step`, masking password / autocomplete / `[data-dolly-secret]` values |
+| Synthetic cursor | `packages/cursor` | click-through canvas overlay (cursor glyph, ripple, spotlight) + a smooth path between step targets |
+| Embeddable player | `packages/player` | `<dolly-walkthrough>` web component: watch mode + live driver (auto-run / coach) |
+| Zoom / path polish | `packages/autozoom`, `packages/cursoropt` | reused to route the watch-mode cursor cleanly through every target |
+| Authoring extension | `apps/extension` | MV3: content recorder, tabCapture service worker, React popup step editor + export |
+| Integration demo | `apps/demo` | a mock product page embedding the player, with an integration test that drives a real DOM |
 
 ## Building
 
-DOLLY ships on macOS only. This repository is a monorepo; the platform-independent layers
-(`packages/*`) build and test on any OS, while the native app requires macOS + Xcode.
-
-### Platform-independent (any OS)
+Everything is browser TypeScript — it builds and tests on any OS.
 
 ```sh
 pnpm install
-pnpm -r build      # compile packages/schema and packages/autozoom
-pnpm -r test       # run the TS test suites (auto-zoom fixture suite, shared-math tests)
+pnpm -r build       # all packages + both apps (extension & demo vite-build to dist/)
+pnpm -r typecheck
+pnpm -r test        # selector self-heal, recorder+masking, schema, cursor, player, demo integration
 ```
 
-### Full macOS app
+Load the unpacked extension from `apps/extension/dist/` (Chrome → Extensions → Developer mode →
+Load unpacked). Serve the demo with `pnpm --filter @dolly/demo dev`.
 
-See [`MAC_BUILD.md`](MAC_BUILD.md) for the complete Xcode/Tauri/signing checklist. In short:
+## The tests that matter
 
-```sh
-scripts/build-sidecar.sh                       # swift build + lipo universal dollyd
-pnpm --filter desktop tauri build --target universal-apple-darwin
-scripts/sign-and-notarize.sh                   # sign sidecar, then app; notarize; staple
-```
+1. **Self-healing** (`packages/selector/test`) — before/after DOM-drift fixtures (renamed id,
+   changed class, wrapped node, edited text, moved element, added/removed attr) assert the resolver
+   still finds the target, and that structural reordering can't hijack a match.
+2. **Recorder + masking** (`packages/recorder/test`) — event→step mapping never emits secret
+   values; only navigation keystrokes are recorded.
+3. **Integration** (`apps/demo/test`) — a `Recording` built from the demo's real markup drives that
+   form to the expected state through the player, **and still does so after the page's ids/test-ids
+   drift** — proving the end-to-end embed.
 
-## The three tests that matter
+## Live replay — safety
 
-1. **Clock sync** (`native/dollyd/Tests/.../ClockSyncTests.swift`) — cursor vs. video
-   timebase agreement within one frame. macOS-only.
-2. **Auto-zoom fixtures** (`packages/autozoom/test`) — regression suite over hand-labeled
-   cursor traces. Runs anywhere.
-3. **Render parity** (`native/dollyd/Tests/.../ParityTests.swift`) — export path must match
-   the preview path pixel-for-pixel. macOS-only.
+Auto-run dispatches real actions in the viewer's page, so DOLLY holds back the dangerous ones:
+
+- Steps flagged **destructive** are **coached, never auto-run** (the viewer performs them).
+- A visible **"DOLLY is driving"** banner shows during auto-run, and playback is abortable.
+- **Masked** inputs (passwords, secrets) never carry a value — DOLLY pauses and asks the viewer to
+  type their own.
 
 ## Status
 
-This is a scaffold-complete first pass. The pure-TS core (`packages/schema`,
-`packages/autozoom`) is implemented and tested. The native tree (`native/dollyd`,
-`apps/desktop/src-tauri`) and the React editor are written and awaiting a macOS build —
-every deferred step is marked `TODO(mac)` and enumerated in `MAC_BUILD.md`.
+The libraries and the integration are implemented and unit-tested on Linux (selector, recorder,
+schema, cursor, player driver, and the demo integration all run green). The MV3 extension and the
+demo vite-build into loadable output. Full in-browser QA — loading the unpacked extension,
+recording on a live site, and replaying auto-run/coach against real DOM drift — is a manual browser
+step on top of the covered logic.

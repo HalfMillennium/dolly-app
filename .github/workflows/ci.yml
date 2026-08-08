@@ -6,10 +6,11 @@ on:
   pull_request:
 
 jobs:
-  # The platform-independent core: this is the gate that actually runs green everywhere.
-  # It covers the shared render math (§6.3) and the auto-zoom fixture regression suite (§6.4).
+  # The platform-independent core: the gate that runs green everywhere. Builds and unit-tests
+  # every library — the self-healing selector engine, the recorder, the recording schema, the
+  # cursor overlay/path, and the player driver (jsdom).
   ts-core:
-    name: TS core (schema + auto-zoom)
+    name: TS core (build + test all packages)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,13 +24,15 @@ jobs:
         run: pnpm -r build
       - name: Typecheck
         run: pnpm -r typecheck
-      - name: Test (math + auto-zoom fixtures)
+      - name: Test (selector self-heal, recorder, schema, cursor, player, autozoom, cursoropt)
         run: pnpm -r test
       - name: Smoke-test schema -> TypeScript codegen
         run: pnpm --filter @dolly/schema exec tsx scripts/gen-ts.ts
 
-  frontend:
-    name: Frontend typecheck + build
+  # The browser surfaces: the MV3 authoring extension and the embed demo both vite-build into a
+  # loadable dist/. The demo also carries the integration test (run in ts-core via pnpm -r test).
+  apps:
+    name: Apps (extension + demo build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,38 +42,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Build every workspace package the app depends on (schema, autozoom, cursoropt, …) so
-      # their dist/ types resolve during the desktop typecheck. `--filter '!desktop'` skips the
-      # app itself (built by the next step).
-      - run: pnpm -r --filter '!desktop' build
-      - run: pnpm --filter desktop typecheck
-      - run: pnpm --filter desktop build
-
-  # macOS build: sidecar + Tauri app + the two native tests (§5.3 clock sync, §6.6 parity).
-  # This job compiles the Swift/Rust that cannot be built on Linux. The native tree is a
-  # first-draft (every gap marked TODO(mac); see MAC_BUILD.md), so this job is EXPECTED to be
-  # red until the macOS build pass lands. It is non-blocking on purpose — the ts-core and
-  # frontend jobs are the gate that must stay green. Once the sidecar compiles on a Mac,
-  # remove `continue-on-error` to make this a hard gate too.
-  macos-app:
-    name: macOS build (sidecar + Tauri + native tests) [draft, non-blocking]
-    runs-on: macos-14
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm -r build
-      - name: Build the Swift sidecar (universal)
-        run: scripts/build-sidecar.sh release
-      - name: Native tests — clock sync (§5.3) + render parity (§6.6)
-        run: swift test --package-path native/dollyd
-      - name: Build the Tauri app (unsigned)
-        run: pnpm --filter desktop tauri build --target universal-apple-darwin
+      # Build the workspace packages first so the apps resolve their dist/ types.
+      - run: pnpm -r --filter "./packages/*" build
+      - name: Build the MV3 extension
+        run: pnpm --filter @dolly/extension build
+      - name: Build the embed demo
+        run: pnpm --filter @dolly/demo build

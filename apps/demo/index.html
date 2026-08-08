@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DOLLY — embed demo</title>
+    <style>
+      body { margin: 0; padding: 32px; font-family: system-ui, sans-serif; color: #0f172a; background: #f8fafc; }
+      .wrap { display: grid; grid-template-columns: 1fr 320px; gap: 32px; max-width: 980px; margin: 0 auto; }
+      .panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; }
+      .btn-primary { padding: 8px 16px; border-radius: 8px; border: 0; background: #2563eb; color: #fff; font: inherit; cursor: pointer; }
+      .side h2 { font-size: 15px; margin-top: 0; }
+      .side button { display: block; width: 100%; margin: 8px 0; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; font: inherit; cursor: pointer; }
+      .note { color: #64748b; font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="panel" id="product"><!-- mock product UI injected here --></div>
+      <div class="side">
+        <div class="panel">
+          <h2>DOLLY walkthrough</h2>
+          <dolly-walkthrough id="dolly" mode="live" live-default="coach"></dolly-walkthrough>
+          <button id="coach">▶ Coach me</button>
+          <button id="auto">⚡ Auto-run</button>
+          <button id="drift">🔀 Drift the DOM (rename ids)</button>
+          <p class="note">
+            The walkthrough targets elements by resilient locators. Press "Drift" to rename the form's
+            ids, then run again — the self-healing resolver still finds each field.
+          </p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

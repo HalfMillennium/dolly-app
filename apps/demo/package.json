@@ -1,0 +1,24 @@
+{
+  "name": "@dolly/demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Integration demo: a mock product page embedding <dolly-walkthrough>, proving watch + live (auto-run/coach) replay with self-healing against a real DOM.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dolly/player": "workspace:*",
+    "@dolly/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@dolly/selector": "workspace:*",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  }
+}
