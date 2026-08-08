@@ -1,0 +1,29 @@
+{
+  "name": "@dolly/recorder",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Turn DOM interaction events into walkthrough Steps (with self-healing locators) and mask sensitive values. Runs in the extension content script.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dolly/schema": "workspace:*",
+    "@dolly/selector": "workspace:*"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
